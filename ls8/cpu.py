@@ -1,9 +1,7 @@
 """CPU functionality."""
 
-import sys
-
-
 # opcodes
+import sys
 HLT = 0b00000001
 LDI = 0b10000010
 PRN = 0b01000111
@@ -28,7 +26,6 @@ GT = 0b00000010
 EQ = 0b00000001
 
 
-
 class CPU:
     """Main CPU class."""
 
@@ -39,75 +36,11 @@ class CPU:
         self.pc = 0
         self.halted = False
         self.flag_reg = [0] * 8
-        self.bt = {
-            HLT : self.HLT,
-            PRN : self.PRN,
-            LDI : self.LDI,
-            MUL : self.MUL,
-            ADD : self.ADD,
-            SUB : self.SUB,
-            PUSH : self.PUSH,
-            POP : self.POP,
-            CALL : self.CALL,
-            RET : self.RET,
-            CMP : self.CMP
-        }
+        self.SP = 0xf3
 
-    def op_ldi(self, operand_a, operand_b):
-        self.reg[operand_a] = operand_b
-    
-    def op_prn(self, operand_a, operand_b):
-        print(self.reg[operand_a])
-    
-    def op_hlt(self, operand_a, operand_b):
-        sys.exit(0)
-    
-    def op_add(self, operand_a, operand_b):
-        self.alu("ADD", operand_a, operand_b)
-    
-    def op_mul(self, operand_a, operand_b):
-        self.alu("MUL", operand_a, operand_b)
-    
-    def op_pop(self, operand_a, operand_b):
-        self.reg[operand_a] = self.pop_val()
-    
-    def op_push(self, operand_a, operand_b):
-        self.push_val(self.reg[operand_a])
-
-    def op_call(self, operand_a, operand_b):
-        # Pushing next instruction to stack
-        self.push_val(self.pc + 2)
-        # setting pc address of subroutine
-        self.pc = self.reg[operand_a]
-
-    def op_cmp(self, operand_a, operand_b):
-        self.alu("CMP", operand_a, operand_b)
-
-    def op_jmp(self, operand_a, operand_b):
-        # Set the PC to the address stored in the given register
-        self.pc = self.reg[operand_a]
-
-    def op_jeq(self, operand_a, operand_b):
-        # If equal flag is set (true), jump to the address stored in the given register
-        if self.fl == EQ:
-            self.pc = self.reg[operand_a]
-        else:
-            self.pc += 2
-
-    def op_jne(self, operand_a, operand_b):
-        # If E flag is clear (false, 0), jump to the address stored in the given register
-        if not self.fl == EQ:
-            self.pc = self.reg[operand_a]
-        else:
-            self.pc += 2
-
-    def op_ret(self, operand_a, operand_b):
-        # Poping next instruction off top of stack
-        self.pc = self.pop_val()
-    
     def ram_write(self, mdr, mar):
         self.ram[mar] = mdr
-    
+
     def ram_read(self, mar):
         return self.ram[mar]
 
@@ -128,9 +61,9 @@ class CPU:
 
                     if num == '':
                         continue  # ignore blank lines
-                    
+
                     val = int(num, 2)
-                    
+
                     # store val in memory at the given address
                     self.ram[address] = val
 
@@ -154,7 +87,6 @@ class CPU:
         #     self.ram[address] = instruction
         #     address += 1
 
-
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
 
@@ -171,13 +103,15 @@ class CPU:
             self.reg[reg_a] //= self.reg[reg_b]
 
         elif op == "CMP":
-            # if they are equal
-            if reg_a == reg_b:
-            # set Equal E flag to 1 
-                self.flag_reg[EQ] = 0b00000001
-            # otherwise set to 0
-            else:
-                self.flag_reg[EQ] = 0b00000000
+            a = self.reg[reg_a]
+            b = self.reg[reg_b]
+
+            if a == b:
+                self.EQ, self.LT, self.GT = (1, 0, 0)
+            elif a < b:
+                self.EQ, self.LT, self.GT = (0, 1, 0)
+            elif a > b:
+                self.EQ, self.LT, self.GT = (0, 0, 1)
         else:
             raise Exception("unsupported ALU operation")
 
@@ -189,8 +123,8 @@ class CPU:
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
             self.pc,
-            #self.fl,
-            #self.ie,
+            # self.fl,
+            # self.ie,
             self.ram_read(self.pc),
             self.ram_read(self.pc + 1),
             self.ram_read(self.pc + 2)
@@ -205,7 +139,8 @@ class CPU:
         """Run the CPU."""
         while not self.halted:
             ir = self.ram[self.pc]
-            instruction_length = ((ir >> 6) & 0b11) + 1 # (bitshifted instruction)
+            instruction_length = ((ir >> 6) & 0b11) + \
+                1  # (bitshifted instruction)
             operand_a = self.ram_read(self.pc + 1)
             operand_b = self.ram_read(self.pc + 2)
             # set the instruction length here (extract)
@@ -213,7 +148,7 @@ class CPU:
             # halt
             if ir == HLT:
                 self.halted = True
-            
+
             # LDI
             elif ir == LDI:
                 self.reg[operand_a] = operand_b
@@ -224,19 +159,35 @@ class CPU:
 
             elif ir == MUL:
                 self.alu("MUL", operand_a, operand_b)
-            
+
                 self.pc += instruction_length
-            
+
             elif ir == SUB:
                 self.alu("SUB", operand_a, operand_b)
-            
+
             elif ir == ADD:
                 self.alu("ADD", operand_a, operand_b)
-            
-            elif ir == CALL:
-                
 
-            elif ir  == PUSH:
+            elif ir == CALL:
+                # Register hold pc where to jump
+                operand_b = self.ram_read(self.pc + 1)
+
+                self.ram_write(self.SP, self.pc + 2)
+                self.SP -= 1
+
+                # Jump to instruction pointed in Call
+                self.pc = self.reg[operand_a]
+
+            elif ir == RET:
+                self.PC = self.ram_read(self.SP + 1)  # Pop from stack the PC
+                self.SP += 1
+
+            elif ir == CMP:
+                a = self.reg[operand_a]
+                b = self.reg[operand_b]
+                self.alu("CMP", a, b)
+
+            elif ir == PUSH:
                 # Grab the register argument
                 reg = self.ram[self.pc + 1]
                 val = self.reg[reg]
@@ -245,6 +196,7 @@ class CPU:
                 # copy the value from the address pointed to by the SP
                 self.ram[self.reg[SP]] = val
                 self.pc += 2
+
             elif ir == POP:
                 # Grab the value from the top of the stack
                 reg = self.ram[self.pc + 1]
@@ -253,34 +205,13 @@ class CPU:
                 self.reg[reg] = val
                 # increment SP
                 self.reg[SP] += 1
-                self.pc +=2
+                self.pc += 2
+
             elif ir == HLT:
                 sys.exit(0)
             else:
                 print(f"I did not understand that command: {ir}")
                 sys.exit(1)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # """CPU functionality."""
@@ -397,5 +328,3 @@ class CPU:
 #                 self.alu("MUL", reg_num, value)
 
 #             self.pc += instruction_length
-
-   
