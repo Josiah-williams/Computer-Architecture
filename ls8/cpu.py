@@ -10,8 +10,23 @@ PRN = 0b01000111
 MUL = 0b10100010
 PUSH = 0b01000101
 POP = 0b01000110
+CALL = 0b01010000
+ADD = 0b10100000
+RET = 0b00010001
+SUB = 0b10100001
+CMP = 0b10100111
+# JMP = 0b01010100
+# JEQ = 0b01010101
+# JNE = 0b01010110
+
 
 SP = 7
+
+# Flags
+LT = 0b00000100
+GT = 0b00000010
+EQ = 0b00000001
+
 
 
 class CPU:
@@ -23,7 +38,73 @@ class CPU:
         self.ram = [0] * 256
         self.pc = 0
         self.halted = False
+        self.flag_reg = [0] * 8
+        self.bt = {
+            HLT : self.HLT,
+            PRN : self.PRN,
+            LDI : self.LDI,
+            MUL : self.MUL,
+            ADD : self.ADD,
+            SUB : self.SUB,
+            PUSH : self.PUSH,
+            POP : self.POP,
+            CALL : self.CALL,
+            RET : self.RET,
+            CMP : self.CMP
+        }
 
+    def op_ldi(self, operand_a, operand_b):
+        self.reg[operand_a] = operand_b
+    
+    def op_prn(self, operand_a, operand_b):
+        print(self.reg[operand_a])
+    
+    def op_hlt(self, operand_a, operand_b):
+        sys.exit(0)
+    
+    def op_add(self, operand_a, operand_b):
+        self.alu("ADD", operand_a, operand_b)
+    
+    def op_mul(self, operand_a, operand_b):
+        self.alu("MUL", operand_a, operand_b)
+    
+    def op_pop(self, operand_a, operand_b):
+        self.reg[operand_a] = self.pop_val()
+    
+    def op_push(self, operand_a, operand_b):
+        self.push_val(self.reg[operand_a])
+
+    def op_call(self, operand_a, operand_b):
+        # Pushing next instruction to stack
+        self.push_val(self.pc + 2)
+        # setting pc address of subroutine
+        self.pc = self.reg[operand_a]
+
+    def op_cmp(self, operand_a, operand_b):
+        self.alu("CMP", operand_a, operand_b)
+
+    def op_jmp(self, operand_a, operand_b):
+        # Set the PC to the address stored in the given register
+        self.pc = self.reg[operand_a]
+
+    def op_jeq(self, operand_a, operand_b):
+        # If equal flag is set (true), jump to the address stored in the given register
+        if self.fl == EQ:
+            self.pc = self.reg[operand_a]
+        else:
+            self.pc += 2
+
+    def op_jne(self, operand_a, operand_b):
+        # If E flag is clear (false, 0), jump to the address stored in the given register
+        if not self.fl == EQ:
+            self.pc = self.reg[operand_a]
+        else:
+            self.pc += 2
+
+    def op_ret(self, operand_a, operand_b):
+        # Poping next instruction off top of stack
+        self.pc = self.pop_val()
+    
     def ram_write(self, mdr, mar):
         self.ram[mar] = mdr
     
@@ -89,8 +170,16 @@ class CPU:
         elif op == "DIV":
             self.reg[reg_a] //= self.reg[reg_b]
 
+        elif op == "CMP":
+            # if they are equal
+            if reg_a == reg_b:
+            # set Equal E flag to 1 
+                self.flag_reg[EQ] = 0b00000001
+            # otherwise set to 0
+            else:
+                self.flag_reg[EQ] = 0b00000000
         else:
-            raise Exception("Unsupported ALU operation")
+            raise Exception("unsupported ALU operation")
 
     def trace(self):
         """
@@ -138,6 +227,15 @@ class CPU:
             
                 self.pc += instruction_length
             
+            elif ir == SUB:
+                self.alu("SUB", operand_a, operand_b)
+            
+            elif ir == ADD:
+                self.alu("ADD", operand_a, operand_b)
+            
+            elif ir == CALL:
+                
+
             elif ir  == PUSH:
                 # Grab the register argument
                 reg = self.ram[self.pc + 1]
