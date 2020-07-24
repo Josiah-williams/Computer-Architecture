@@ -14,7 +14,7 @@ RET = 0b00010001
 SUB = 0b10100001
 CMP = 0b10100111
 JMP = 0b01010100
-# JEQ = 0b01010101
+JEQ = 0b01010101
 # JNE = 0b01010110
 
 
@@ -191,6 +191,12 @@ class CPU:
 
                 self.PC = self.reg[operand_a]  # Set the PC to the address stored in the given register.
 
+            elif ir == JEQ:
+                if self.flag_reg[EQ] == 1:
+                    self.pc = self.reg[operand_a]
+                else:
+                    self.pc += 2
+                    
             elif ir == PUSH:
                 # Grab the register argument
                 reg = self.ram[self.pc + 1]
