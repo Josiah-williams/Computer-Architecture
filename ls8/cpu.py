@@ -13,7 +13,7 @@ ADD = 0b10100000
 RET = 0b00010001
 SUB = 0b10100001
 CMP = 0b10100111
-# JMP = 0b01010100
+JMP = 0b01010100
 # JEQ = 0b01010101
 # JNE = 0b01010110
 
@@ -139,8 +139,7 @@ class CPU:
         """Run the CPU."""
         while not self.halted:
             ir = self.ram[self.pc]
-            instruction_length = ((ir >> 6) & 0b11) + \
-                1  # (bitshifted instruction)
+            instruction_length = ((ir >> 6) & 0b11) +  1  # (bitshifted instruction)
             operand_a = self.ram_read(self.pc + 1)
             operand_b = self.ram_read(self.pc + 2)
             # set the instruction length here (extract)
@@ -186,6 +185,11 @@ class CPU:
                 a = self.reg[operand_a]
                 b = self.reg[operand_b]
                 self.alu("CMP", a, b)
+
+            elif ir == JMP:
+                operand_a = self.ram_read(self.pc + 1) # Jump to the address stored in the given register.
+
+                self.PC = self.reg[operand_a]  # Set the PC to the address stored in the given register.
 
             elif ir == PUSH:
                 # Grab the register argument
