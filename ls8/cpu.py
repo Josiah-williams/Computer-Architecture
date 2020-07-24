@@ -15,7 +15,7 @@ SUB = 0b10100001
 CMP = 0b10100111
 JMP = 0b01010100
 JEQ = 0b01010101
-# JNE = 0b01010110
+JNE = 0b01010110
 
 
 SP = 7
@@ -196,7 +196,13 @@ class CPU:
                     self.pc = self.reg[operand_a]
                 else:
                     self.pc += 2
-                    
+
+            elif ir == JNE:
+                if self.flag_reg[EQ] == 0b00000000:
+                    self.pc = self.reg[operand_a]
+                else:
+                    self.pc +=2
+            
             elif ir == PUSH:
                 # Grab the register argument
                 reg = self.ram[self.pc + 1]
