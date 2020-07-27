@@ -35,8 +35,8 @@ class CPU:
         self.ram = [0] * 256
         self.pc = 0
         self.halted = False
-        self.flag_reg = [0] * 8
-        self.SP = 0xf3
+        self.fl = 6
+        self.SP = 7
 
     def ram_write(self, mdr, mar):
         self.ram[mar] = mdr
@@ -143,7 +143,8 @@ class CPU:
             operand_a = self.ram_read(self.pc + 1)
             operand_b = self.ram_read(self.pc + 2)
             # set the instruction length here (extract)
-
+            set_pc_direct = False
+            
             # halt
             if ir == HLT:
                 self.halted = True
@@ -158,8 +159,6 @@ class CPU:
 
             elif ir == MUL:
                 self.alu("MUL", operand_a, operand_b)
-
-                self.pc += instruction_length
 
             elif ir == SUB:
                 self.alu("SUB", operand_a, operand_b)
@@ -178,30 +177,25 @@ class CPU:
                 self.pc = self.reg[operand_a]
 
             elif ir == RET:
-                self.PC = self.ram_read(self.SP + 1)  # Pop from stack the PC
+                self.pc = self.ram_read(self.SP + 1)  # Pop from stack the PC
                 self.SP += 1
 
             elif ir == CMP:
-                a = self.reg[operand_a]
-                b = self.reg[operand_b]
-                self.alu("CMP", a, b)
+                self.alu("CMP", operand_a, operand_b)
 
             elif ir == JMP:
-                operand_a = self.ram_read(self.pc + 1) # Jump to the address stored in the given register.
-
-                self.PC = self.reg[operand_a]  # Set the PC to the address stored in the given register.
+                self.pc = self.reg[operand_a]  # Set the PC to the address stored in the given register.
+                set_pc_direct = True
 
             elif ir == JEQ:
-                if self.flag_reg[EQ] == 1:
+                if self.EQ == 1:
                     self.pc = self.reg[operand_a]
-                else:
-                    self.pc += 2
-
+                    set_pc_direct = True
+            
             elif ir == JNE:
-                if self.flag_reg[EQ] == 0b00000000:
+                if self.EQ != 1:
                     self.pc = self.reg[operand_a]
-                else:
-                    self.pc +=2
+                    set_pc_direct = True
             
             elif ir == PUSH:
                 # Grab the register argument
@@ -211,7 +205,6 @@ class CPU:
                 self.reg[SP] -= 1
                 # copy the value from the address pointed to by the SP
                 self.ram[self.reg[SP]] = val
-                self.pc += 2
 
             elif ir == POP:
                 # Grab the value from the top of the stack
@@ -221,13 +214,15 @@ class CPU:
                 self.reg[reg] = val
                 # increment SP
                 self.reg[SP] += 1
-                self.pc += 2
 
             elif ir == HLT:
                 sys.exit(0)
             else:
                 print(f"I did not understand that command: {ir}")
                 sys.exit(1)
+
+            if set_pc_direct is False:
+                self.pc += instruction_length
 
 
 # """CPU functionality."""
